@@ -1,0 +1,153 @@
+CREATE OR REPLACE PACKAGE product_status_pkg AS
+-- Define a global variable to store the result of the status query
+TYPE status_record_type IS RECORD (
+p_pid product.productid%TYPE,
+p_sta product.status%TYPE
+);
+-- Procedure 1: Retrieve the status of a single product
+PROCEDURE get_product_status(
+p_pid IN product.productid%TYPE,
+p_sta OUT product.status%TYPE
+);
+
+-- Procedure 2: Retrieve status for all products and store them in the global variable
+PROCEDURE get_product_status(
+p_pid IN product.title%TYPE,
+p_sta OUT product.status%TYPE
+);
+END product_status_pkg;
+/
+
+CREATE OR REPLACE PACKAGE BODY product_status_pkg AS
+  -- Procedure 1: Retrieve the status of a single product
+  PROCEDURE get_product_status(
+    p_pid IN product.productid%TYPE,
+    p_sta OUT product.status%TYPE
+  ) IS
+  BEGIN
+    SELECT status 
+    INTO p_sta FROM product
+    WHERE productid = p_pid;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No product was found!');
+  END get_product_status;
+  
+  -- Procedure 2: Retrieve status for all products and store them in the global variable
+PROCEDURE get_product_status(
+    p_pid IN product.title%TYPE,
+    p_sta OUT product.status%TYPE
+  ) IS
+  BEGIN
+    SELECT status 
+    INTO p_sta FROM product
+    WHERE title = p_pid;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No product was found!');
+  END get_product_status;
+END product_status_pkg;
+/
+
+-- Anonymous block to test the packaged procedure
+-- Anonymous block to test the packaged procedure
+DECLARE
+  v_pid product.productid%TYPE;
+  v_sta product.status%TYPE;
+BEGIN
+  -- Test Procedure 1: Retrieve the status of a single product by productid
+  v_pid := 1009; -- Replace with an existing productid in your database
+  product_status_pkg.get_product_status(v_pid, v_sta);
+  DBMS_OUTPUT.PUT_LINE('Status for Product ' || v_pid || ': ' || v_sta);
+END;
+DECLARE
+  v_pid product.title%TYPE;
+  v_sta product.status%TYPE;
+BEGIN
+  -- Test Procedure 2: Retrieve the status of a single product by title
+  v_pid :=  'adidas Alliance II Sackpack'; -- Replace with an existing product title in your database
+  product_status_pkg.get_product_status(v_pid, v_sta);
+  DBMS_OUTPUT.PUT_LINE('Status for Product Title "' || v_pid || '": ' || v_sta);
+END;
+/
+
+
+CREATE OR REPLACE PACKAGE most_user_pkg AS
+  -- Custom record type to hold product details
+  TYPE product_record IS RECORD (
+    title VARCHAR2(255),
+    total_quantity NUMBER
+  );
+
+  -- Function to get the most ordered product details
+  FUNCTION get_mostOrderedProduct RETURN product_record;
+
+  -- Function to get the customer name for the most ordered product
+  FUNCTION get_customerName RETURN VARCHAR2;
+END;
+/
+
+CREATE OR REPLACE PACKAGE BODY most_user_pkg AS
+  -- Function to get the most ordered product details
+  FUNCTION get_mostOrderedProduct RETURN product_record IS
+    v_product_title VARCHAR2(255);
+    v_product_details product_record;
+  BEGIN
+    SELECT p.Title, SUM(oi.Quantity) AS total_quantity
+    INTO v_product_title, v_product_details.total_quantity
+    FROM Product p
+    JOIN OrderItem oi ON p.ProductId = oi.ProductId
+    GROUP BY p.Title
+    ORDER BY SUM(oi.Quantity) DESC
+    FETCH FIRST 1 ROW ONLY;
+
+    v_product_details.title := v_product_title;
+    RETURN v_product_details;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      v_product_details.title := 'No orders or products found';
+      v_product_details.total_quantity := NULL;
+      RETURN v_product_details;
+  END;
+
+  -- Function to get the customer name based on the most ordered product
+  FUNCTION get_customerName RETURN VARCHAR2 IS
+    v_customer_name VARCHAR2(255);
+    v_product_title VARCHAR2(255);
+  BEGIN
+    -- Get the most ordered product title
+    v_product_title := get_mostOrderedProduct().title;
+
+    -- Get the customer name who ordered the most ordered product
+    SELECT c.firstname || ' ' || c.lastname
+    INTO v_customer_name
+    FROM Customer c
+    JOIN Orders o ON c.CustomerId = o.CustomerId
+    JOIN OrderItem oi ON o.OrderId = oi.OrderId
+    JOIN Product p ON oi.ProductId = p.ProductId
+    WHERE p.Title = v_product_title
+    GROUP BY c.firstname, c.lastname
+    ORDER BY SUM(oi.Quantity) DESC
+    FETCH FIRST 1 ROW ONLY;
+
+    RETURN v_customer_name;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RETURN 'No orders or customers found';
+  END;
+END;
+/
+
+
+-- Test: Get the most ordered product
+DECLARE
+  result_product most_user_pkg.product_record;
+  result_customer VARCHAR2(255);
+BEGIN
+  result_product := most_user_pkg.get_mostOrderedProduct();
+  DBMS_OUTPUT.PUT_LINE('Most Ordered Product: ' || result_product.title || ', Quantity: ' || result_product.total_quantity);
+
+  result_customer := most_user_pkg.get_customerName();
+  DBMS_OUTPUT.PUT_LINE('Customer Name for Most Ordered Product: ' || result_customer);
+END;
+/

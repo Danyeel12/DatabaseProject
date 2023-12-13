@@ -1,0 +1,72 @@
+ 
+--Triggers
+/* This trigger automatically updates the status of an order based on the value of the ShipDate field. 
+The status can be one of four values: 'Active', 'Confirmed', 'Inactive', or a custom status based on the business logic defined in the trigger. 
+This helps in keeping the order status up-to-date and relevant to the shipping status,
+which is crucial for order management and customer communication in an e-commerce system. */
+
+CREATE OR REPLACE TRIGGER update_order_status
+BEFORE UPDATE OF ShipDate ON Orders
+FOR EACH ROW
+BEGIN
+    -- Calculate the new status based on ShipDate
+    IF :NEW.ShipDate IS NOT NULL THEN
+        IF :NEW.ShipDate <= SYSDATE THEN
+            :NEW.Status := 'Active';
+        ELSE
+            :NEW.Status := 'Confirmed';
+        END IF;
+    ELSE
+        :NEW.Status := 'Inactive';
+    END IF;
+END;
+/
+
+--Testing
+SELECT * FROM orders;
+
+UPDATE orders
+SET shipdate = '04-08-23'
+WHERE orderID = 1000;
+
+
+
+-- Triggers
+/* This trigger helps in maintaining the inventory quantity by automatically reducing the quantity of products 
+in the inventory when a customer confirms an order. It ensures that the available quantity is updated 
+correctly, preventing overselling or stock-related issues. */
+drop trigger trg_update_inventory
+CREATE OR REPLACE TRIGGER trg_update_inventory
+AFTER INSERT ON OrderItem -- Trigger should be based on the OrderItem table
+FOR EACH ROW
+DECLARE
+  v_quantity NUMBER;
+BEGIN
+  -- Get the current inventory quantity for the product
+  SELECT Quantity INTO v_quantity
+  FROM Inventory
+  WHERE ProductID = :NEW.ProductId;
+
+  -- Calculate the new inventory quantity after the order item is inserted
+  v_quantity := v_quantity - :NEW.Quantity;
+
+  -- Update the inventory table
+  UPDATE Inventory
+  SET Quantity = v_quantity
+  WHERE ProductID = :NEW.ProductId;
+END;
+/
+
+--Testing
+INSERT INTO Inventory (InventoryID, ProductID, Quantity, Shelvinglocation)
+VALUES (1010, 1001, 100, 'Shelf 207'); -- Inserting a product with ID 1 and initial quantity of 100
+ select * from inventory;
+
+INSERT INTO OrderItem (OrderItemId, ProductId, Quantity)
+VALUES (1, 1, 20); -- Inserting an order item with OrderItemId 1, ProductId 1, and Quantity 20
+
+Select * from orderitem;
+INSERT INTO OrderItem (OrderItemId, Orderid, ProductId, Quantity, Actualretail)
+VALUES (1020, 1000, 1000, 10, 369); -- Inserting an order item with OrderItemId 1, ProductId 1, and Quantity 20
+
+SELECT * FROM Inventory WHERE ProductID = 1000;

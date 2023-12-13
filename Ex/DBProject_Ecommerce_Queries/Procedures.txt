@@ -1,0 +1,208 @@
+CREATE OR REPLACE PROCEDURE STATUS_SP(
+  basket_id IN NUMBER,
+  status_desc OUT VARCHAR2,
+  status_date OUT DATE
+) IS
+  v_status_desc VARCHAR2(100);
+BEGIN
+  SELECT
+    CASE o.Status
+      WHEN 'Confirmed' THEN 'Submitted and received'
+      WHEN 'Active' THEN 'Confirmed, processed, sent to shipping'
+      WHEN 'Inactive' THEN 'Shipped'
+      WHEN 'Cancelled' THEN 'Cancelled'
+      WHEN 'Backordered' THEN 'Back-ordered'
+      ELSE 'No status available'
+    END,
+    o.OrderDate -- Replace "StatusDate" with the correct column name, for example, "OrderDate"
+  INTO v_status_desc, status_date
+  FROM Orders o
+  WHERE o.OrderId = basket_id;
+
+  status_desc := v_status_desc;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    status_desc := 'No status available';
+    status_date := NULL;
+END;
+/
+
+--testing
+DECLARE
+  v_status_desc VARCHAR2(100);
+  v_status_date DATE;
+BEGIN
+  -- Test with basket ID 1000
+  STATUS_SP(1000, v_status_desc, v_status_date);
+  DBMS_OUTPUT.PUT_LINE('Basket ID: 1000');
+  DBMS_OUTPUT.PUT_LINE('Status Description: ' || v_status_desc);
+  DBMS_OUTPUT.PUT_LINE('Status Date: ' || v_status_date);
+END;
+
+DECLARE
+  v_status_desc VARCHAR2(100);
+  v_status_date DATE;
+BEGIN
+  -- Test with basket ID 1003
+  STATUS_SP(1005, v_status_desc, v_status_date);
+  DBMS_OUTPUT.PUT_LINE('Basket ID: 1003');
+  DBMS_OUTPUT.PUT_LINE('Status Description: ' || v_status_desc);
+  DBMS_OUTPUT.PUT_LINE('Status Date: ' || v_status_date);
+END;
+Procedure 2 is done
+--Procedure with type attribute
+CREATE OR REPLACE PROCEDURE ship_cost(
+  p_quantity IN NUMBER,
+  p_shipcost OUT NUMBER
+)
+AS
+  -- Declare a cursor to retrieve shipping costs from a table
+  CURSOR cost_cursor IS
+    SELECT o.shipcost
+    FROM orders o
+    JOIN orderitem oi USING (orderid)
+    WHERE oi.quantity >= p_quantity AND 
+          oi.quantity <= (
+            SELECT MIN(quantity) 
+            FROM orderitem 
+            WHERE quantity >= p_quantity
+          );
+
+  -- Variable to store the retrieved shipping cost
+  v_shipcost orders.shipcost%TYPE;
+BEGIN
+  -- Initialize the shipping cost variable to a default value
+  p_shipcost := 0;
+
+  -- Use the existing IF statement to determine shipping cost based on quantity
+  IF p_quantity > 1 THEN
+    p_shipcost := 5;
+  ELSIF p_quantity > 3 THEN
+    p_shipcost := 10;
+  ELSE 
+    p_shipcost := 12;
+  END IF;
+
+  -- Open the cursor
+  OPEN cost_cursor;
+
+  -- Fetching data from the cursor
+  FETCH cost_cursor INTO v_shipcost;
+
+  IF cost_cursor%NOTFOUND THEN
+    -- Handling the case when no data is found
+    p_shipcost := -1; -- Use a special value (-1 in this case) to indicate no data found.
+    DBMS_OUTPUT.PUT_LINE('No shipping cost data found for the given quantity.');
+  ELSE
+    -- Assign the retrieved shipping cost to the output parameter
+    p_shipcost := v_shipcost;
+  END IF;
+
+  -- Closing the cursor
+  CLOSE cost_cursor;
+
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    -- Handle any other unexpected errors
+     -- Use another special value (-2 in this case) to indicate an error.
+    DBMS_OUTPUT.PUT_LINE('No quantity found.');
+END ship_cost;
+/
+
+--Testing
+--Quantity 1
+DECLARE
+  v_quantity NUMBER;
+  v_shipcost NUMBER;
+BEGIN
+  v_quantity := 1;
+  ship_cost(v_quantity, v_shipcost);
+  DBMS_OUTPUT.PUT_LINE('Shipping cost for Quantity ' || v_quantity || ': ' || v_shipcost);
+END;
+/
+--Quantity 2
+DECLARE
+  v_quantity NUMBER;
+  v_shipcost NUMBER;
+BEGIN
+  v_quantity := 2;
+  ship_cost(v_quantity, v_shipcost);
+  DBMS_OUTPUT.PUT_LINE('Shipping cost for Quantity ' || v_quantity || ': ' || v_shipcost);
+END;
+/
+--Quantity 4
+DECLARE
+  v_quantity NUMBER;
+  v_shipcost NUMBER;
+BEGIN
+  v_quantity := 4;
+  ship_cost(v_quantity, v_shipcost);
+  DBMS_OUTPUT.PUT_LINE('Shipping cost for Quantity ' || v_quantity || ': ' || v_shipcost);
+END;
+/
+--Quantity 5
+DECLARE
+  v_quantity NUMBER;
+  v_shipcost NUMBER;
+BEGIN
+  v_quantity := 5;
+  ship_cost(v_quantity, v_shipcost);
+  DBMS_OUTPUT.PUT_LINE('Shipping cost for Quantity ' || v_quantity || ': ' || v_shipcost);
+END;
+
+
+
+
+
+
+CREATE OR REPLACE PACKAGE BODY product_status_pkg AS
+  -- Procedure 1: Retrieve the status of a single product
+  PROCEDURE get_product_status(
+    p_pid IN product.productid%TYPE,
+    p_sta OUT product.status%TYPE
+  ) IS
+  BEGIN
+    SELECT status 
+    INTO p_sta FROM product
+    WHERE productid = p_pid;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No product was found!');
+  END get_product_status;
+  
+  -- Procedure 2: Retrieve status for all products and store them in the global variable
+PROCEDURE get_product_status(
+    p_pid IN product.title%TYPE,
+    p_sta OUT product.status%TYPE
+  ) IS
+  BEGIN
+    SELECT status 
+    INTO p_sta FROM product
+    WHERE title = p_pid;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No product was found!');
+  END get_product_status;
+END product_status_pkg;
+/
+
+-- Anonymous block to test the packaged procedure
+DECLARE
+  v_pid product.productid%TYPE;
+  v_sta product.status%TYPE;
+BEGIN
+  -- Test Procedure 1: Retrieve the status of a single product by productid
+  v_pid := 1009; -- Replace with an existing productid in your database
+  product_status_pkg.get_product_status(v_pid, v_sta);
+  DBMS_OUTPUT.PUT_LINE('Status for Product ' || v_pid || ': ' || v_sta);
+END;
+DECLARE
+  v_pid product.title%TYPE;
+  v_sta product.status%TYPE;
+BEGIN
+  -- Test Procedure 2: Retrieve the status of a single product by title
+  v_pid :=  'adidas Alliance II Sackpack'; -- Replace with an existing product title in your database
+  product_status_pkg.get_product_status(v_pid, v_sta);
+  DBMS_OUTPUT.PUT_LINE('Status for Product Title "' || v_pid || '": ' || v_sta);
+END;
+/

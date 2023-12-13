@@ -1,0 +1,63 @@
+  
+CREATE TABLE OrderItem (
+  OrderItemId      number(10) NOT NULL, 
+  OrderId          number(10) NOT NULL, 
+  ProductId        number(10) NOT NULL, 
+  Quantity         number(10) NOT NULL, 
+  ActualRetail number(10, 2) NOT NULL, 
+  PRIMARY KEY (OrderItemId), 
+  CONSTRAINT orderitem_quantity_ck 
+    CHECK (Quantity >= 1), 
+  CONSTRAINT orderitem_actualretail_ck 
+    CHECK (ActualRetail >= 1));
+CREATE TABLE Orders (
+  OrderId     number(10) NOT NULL, 
+  CustomerId  number(10) NOT NULL, 
+  Status      varchar2(255) DEFAULT 'Inactive' NOT NULL, 
+  PaymentType varchar2(255), 
+  OrderDate   date DEFAULT SYSDATE, 
+  ShipDate    date, 
+  ShipStreet  varchar2(255), 
+  ShipCity    varchar2(255), 
+  ShipState   varchar2(2), 
+  ShipZip     varchar2(5), 
+  ShipCost    number(10, 2), 
+  PRIMARY KEY (OrderId), 
+  CONSTRAINT orders_shipdate_ck 
+    CHECK (OrderDate <= ShipDate), 
+  CONSTRAINT orders_paymenttype_ck 
+    CHECK (PaymentType IN ('Debit', 'Credit', 'PayPal', 'Bitcoin')), 
+  CONSTRAINT orders_status_ck 
+    CHECK (Status IN ('Active', 'Inactive', 'Confirmed', 'Cancelled', 'Shipped', 'Backordered')), 
+  CONSTRAINT orders_shipzip_ck 
+    CHECK (TRANSLATE(ShipZip, '123456789', '000000000') = '00000'), 
+  CONSTRAINT orders_shipcost_ck 
+    CHECK (ShipCost >= 1), 
+  CONSTRAINT orders_shipstate_ck 
+    CHECK ((LENGTH(ShipState) = 2) AND (ShipState = UPPER(ShipState))));
+CREATE TABLE Product (
+  ProductId number(10) NOT NULL, 
+  Title     varchar2(255), 
+  Cost      number(10, 2), 
+  Retail    number(10, 2), 
+  Category  varchar2(255), 
+  Description   varchar2(255), 
+  Status    varchar2(255), 
+  PRIMARY KEY (ProductId), 
+  CONSTRAINT product_retail_ck 
+    CHECK (Retail >= 1), 
+  CONSTRAINT product_cost_ck 
+    CHECK (Cost >= 1), 
+  CONSTRAINT product_status_ck 
+    CHECK (Status IN ('High Stock Level', 'Average Stock Level', 'Low Stock Level', 'Limited Stock Level', 'Out of Stock')));
+CREATE TABLE Review (
+  ReviewId   number(10) NOT NULL, 
+  OrderId    number(10) NOT NULL, 
+  CustomerId number(10) NOT NULL, 
+  ProductId  number(10) NOT NULL, 
+  Comments   varchar2(255) NOT NULL, 
+  Rating     number(1) DEFAULT 5 NOT NULL, 
+  PRIMARY KEY (ReviewId), 
+  CONSTRAINT review_rating_ck 
+    CHECK (Rating IN (1, 2, 3, 4, 5)));
+    

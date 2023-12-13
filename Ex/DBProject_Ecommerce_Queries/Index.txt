@@ -1,0 +1,16 @@
+CREATE INDEX Address_CustomerId 
+  ON Address (CustomerId);
+CREATE INDEX Address_Address 
+  ON Address (Address);
+CREATE INDEX Address_City 
+  ON Address (City);
+CREATE INDEX Address_State 
+  ON Address (State);
+CREATE INDEX Address_Zip 
+  ON Address (Zip);
+CREATE INDEX Customer_FirstName 
+  ON Customer (FirstName);
+CREATE INDEX Customer_LastName 
+  ON Customer (LastName);
+CREATE INDEX Inventory_ProductID 
+  ON Inventory (ProductID);

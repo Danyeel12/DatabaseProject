@@ -1,0 +1,64 @@
+--Functions with exception
+--Make a runtest dbms in this query
+CREATE OR REPLACE FUNCTION CalculateProductRevenue(product_id NUMBER)
+RETURN NUMBER AS
+  total_revenue NUMBER(10, 2) := 0;
+BEGIN
+  SELECT SUM(oi.Quantity * p.Retail) INTO total_revenue
+  FROM OrderItem oi
+  INNER JOIN Product p ON oi.ProductId = p.ProductId
+  WHERE oi.ProductId = product_id;
+
+  RETURN total_revenue;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    RETURN 0;
+END;
+
+--Runtest
+-- Test 1: Calculate revenue for ProductId 1000
+DECLARE
+  result NUMBER(10, 2);
+BEGIN
+  result := CalculateProductRevenue(1000);
+  DBMS_OUTPUT.PUT_LINE('Total Revenue for ProductId 1000: ' || result);
+END;
+/
+-- Test 2: Calculate revenue for ProductId 1001
+DECLARE
+  result NUMBER(10, 2);
+BEGIN
+  result := CalculateProductRevenue(1001);
+  DBMS_OUTPUT.PUT_LINE('Total Revenue for ProductId 1001: ' || result);
+END;
+/
+
+
+--Function with exeption
+CREATE OR REPLACE FUNCTION get_most_ordered_product
+RETURN VARCHAR2
+IS
+  v_product_title VARCHAR2(255);
+BEGIN
+  SELECT p.Title INTO v_product_title
+  FROM Product p
+  JOIN OrderItem oi ON p.ProductId = oi.ProductId
+  GROUP BY p.Title
+  ORDER BY SUM(oi.Quantity) DESC
+  FETCH FIRST 1 ROW ONLY;
+
+  RETURN v_product_title;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    RETURN 'No orders or products found';
+END;
+/
+--Testing for most oredered products
+-- Test: Get the most ordered product
+DECLARE
+  result VARCHAR2(255);
+BEGIN
+  result := get_most_ordered_product();
+  DBMS_OUTPUT.PUT_LINE('Most Ordered Product: ' || result);
+END;
+/
